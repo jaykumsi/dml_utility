@@ -54,6 +54,8 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE PROCEDURE edata.DML_Utility(p_table_name VARCHAR(100))
 AS
+$$
+DECLARE
   v_insert_count INTEGER;
   v_update_count INTEGER;
   v_delete_count INTEGER;
@@ -61,31 +63,33 @@ BEGIN
   INSERT INTO edata.key_audit_table (pk_col1, pk_col2, dml_type, dms_date)
   SELECT pk_col1, pk_col2, dml_type, dms_date
   FROM naviste_dms
-  WHERE dms_date >= (SELECT last_run_date_time FROM control_Tbl WHERE target_table_name = p_table_name);
+  WHERE dms_date >= (SELECT last_run_date_time FROM edata.control_Tbl WHERE target_table_name = p_table_name);
 
   UPDATE edata.control_Tbl
-  SET last_run_date_time = systimestamp
+  SET last_run_date_time = SYSDATE
   WHERE target_table_name = p_table_name;
 
   SELECT COUNT(*) INTO v_insert_count
   FROM edata.key_audit_table
-  WHERE dml_type = 'INSERT' AND dms_date = systimestamp;
+  WHERE dml_type = 'INSERT' AND dms_date = SYSDATE;
 
   SELECT COUNT(*) INTO v_update_count
   FROM edata.key_audit_table
-  WHERE dml_type = 'UPDATE' AND dms_date = systimestamp;
+  WHERE dml_type = 'UPDATE' AND dms_date = SYSDATE;
 
   SELECT COUNT(*) INTO v_delete_count
   FROM edata.key_audit_table
-  WHERE dml_type = 'DELETE' AND dms_date = systimestamp;
+  WHERE dml_type = 'DELETE' AND dms_date = SYSDATE;
 
   INSERT INTO control_log (control_log_id, control_id, last_run_date_time, v_insert_count, v_update_count, v_delete_count, flag)
-  SELECT control_log_id.seq, control_id, last_run_date_time, v_insert_count, v_update_count, v_delete_count, 'Y'
+  SELECT NEXTVAL('control_log_id_seq'), control_id, last_run_date_time, v_insert_count, v_update_count, v_delete_count, 'Y'
   FROM edata.control_Tbl
-  WHERE last_run_date_time = systimestamp
+  WHERE last_run_date_time = SYSDATE
     AND target_table_name = p_table_name;
 
 EXCEPTION
   WHEN OTHERS THEN
-    RAISE SQLCODE || SQLERRM;
+    RAISE;
 END;
+$$
+LANGUAGE plpgsql;
